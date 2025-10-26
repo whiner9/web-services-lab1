@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Результат</title>
+</head>
+<body>
+    <h2>Результат обработки</h2>
+
+    <h3>Исходное изображение 1</h3>
+    <img src="{{ url_for('static', filename=images.img1) }}" width="300"><br>
+    <img src="{{ url_for('static', filename=images.hist1) }}" width="300">
+
+    <h3>Исходное изображение 2</h3>
+    <img src="{{ url_for('static', filename=images.img2) }}" width="300"><br>
+    <img src="{{ url_for('static', filename=images.hist2) }}" width="300">
+
+    <h3>Склеенное изображение</h3>
+    <img src="{{ url_for('static', filename=images.combined) }}" width="300"><br>
+    <img src="{{ url_for('static', filename=images.hist_comb) }}" width="300">
+
+    <br><a href="{{ url_for('index') }}">Назад</a>
+</body>
+</html>
