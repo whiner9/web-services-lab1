@@ -34,8 +34,8 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # --- Настройки Google reCAPTCHA ---
 app.config['RECAPTCHA_USE_SSL'] = False
-app.config['RECAPTCHA_PUBLIC_KEY'] = '6Ldu5vYrAAAAAGGoDyKKMbLpEncMqvq6ltZEiogI'      # <-- Вставьте свой
-app.config['RECAPTCHA_PRIVATE_KEY'] = '6Ldu5vYrAAAAAJwBn65wJDfhM-Op40WzBjAuwlju'   # <-- Вставьте свой
+app.config['RECAPTCHA_PUBLIC_KEY'] = '6LemcPwrAAAAAIYgs6n-eLG8IOHyflc85VDuT9Tz'
+app.config['RECAPTCHA_PRIVATE_KEY'] = '6LemcPwrAAAAAPE2uXznN6l80ur37VyNkfGuajrD'
 app.config['RECAPTCHA_OPTIONS'] = {'theme': 'light'}
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
