@@ -10,16 +10,16 @@
         <h2>Результат обработки</h2>
 
         <h3>Исходное изображение 1</h3>
-        <img src="{{ url_for('static', filename=images.img1) }}" width="300" class="img-fluid mb-2">
-        <img src="{{ url_for('static', filename=images.hist1) }}" width="300" class="img-fluid">
+        <img src="{{ images.img1 }}" width="300"><br>
+        <img src="{{ images.hist1 }}" width="300">
 
-        <h3 class="mt-4">Исходное изображение 2</h3>
-        <img src="{{ url_for('static', filename=images.img2) }}" width="300" class="img-fluid mb-2">
-        <img src="{{ url_for('static', filename=images.hist2) }}" width="300" class="img-fluid">
+        <h3>Исходное изображение 2</h3>
+        <img src="{{ images.img2 }}" width="300"><br>
+        <img src="{{ images.hist2 }}" width="300">
 
-        <h3 class="mt-4">Склеенное изображение</h3>
-        <img src="{{ url_for('static', filename=images.combined) }}" width="300" class="img-fluid mb-2">
-        <img src="{{ url_for('static', filename=images.hist_comb) }}" width="300" class="img-fluid">
+        <h3>Склеенное изображение</h3>
+        <img src="{{ images.combined }}" width="300"><br>
+        <img src="{{ images.hist_comb }}" width="300">
 
         <br><br>
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Назад</a>

@@ -7,6 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import uuid
+import io
+import base64
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'
@@ -59,67 +61,77 @@ def index():
         file2 = form.image2.data
         direction = form.direction.data
 
-        # Генерируем уникальный ID
-        unique_id = str(uuid.uuid4())
-
-        # Пути к файлам
-        path1 = os.path.join(app.config['UPLOAD_FOLDER'], f"{unique_id}_1.png")
-        path2 = os.path.join(app.config['UPLOAD_FOLDER'], f"{unique_id}_2.png")
-        path_combined = os.path.join(app.config['UPLOAD_FOLDER'], f"{unique_id}_combined.png")
-        path_hist1 = os.path.join(app.config['UPLOAD_FOLDER'], f"{unique_id}_hist1.png")
-        path_hist2 = os.path.join(app.config['UPLOAD_FOLDER'], f"{unique_id}_hist2.png")
-        path_hist_comb = os.path.join(app.config['UPLOAD_FOLDER'], f"{unique_id}_hist_comb.png")
-
         # Открываем изображения
         img1 = Image.open(file1).convert('RGB')
         img2 = Image.open(file2).convert('RGB')
 
-        # Конвертируем в массивы NumPy
+        # Конвертируем в массивы
         arr1 = np.array(img1)
         arr2 = np.array(img2)
 
-        # Сохраняем исходные изображения
-        img1.save(path1)
-        img2.save(path2)
+        # Создаём гистограммы (в памяти)
+        hist1_base64 = create_histogram_base64(arr1)
+        hist2_base64 = create_histogram_base64(arr2)
 
-        # Создаём гистограммы
-        create_color_histogram(arr1, path_hist1)
-        create_color_histogram(arr2, path_hist2)
+        # Изменяем размер второго изображения
+        if direction == 'horizontal':
+            new_height = img1.height
+            img2 = img2.resize((img2.width, new_height), Image.Resampling.LANCZOS)
+        else:
+            new_width = img1.width
+            img2 = img2.resize((new_width, img2.height), Image.Resampling.LANCZOS)
+
+        arr2 = np.array(img2)
 
         # Склеиваем
         if direction == 'horizontal':
-            # Убедимся, что высоты одинаковы
-            if img1.height != img2.height:
-                new_width = int(img2.width * img1.height / img2.height)
-                img2 = img2.resize((new_width, img1.height), Image.Resampling.LANCZOS)
-                arr2 = np.array(img2)
             combined_arr = np.concatenate((arr1, arr2), axis=1)
-        else:  # vertical
-            # Убедимся, что ширины одинаковы
-            if img1.width != img2.width:
-                new_height = int(img2.height * img1.width / img2.width)
-                img2 = img2.resize((img1.width, new_height), Image.Resampling.LANCZOS)
-                arr2 = np.array(img2)
+        else:
             combined_arr = np.concatenate((arr1, arr2), axis=0)
 
-        # Сохраняем результат
-        combined_img = Image.fromarray(combined_arr)
-        combined_img.save(path_combined)
-        create_color_histogram(combined_arr, path_hist_comb)
+        # Конвертируем все изображения в base64
+        img1_base64 = image_to_base64(img1)
+        img2_base64 = image_to_base64(img2)
+        combined_base64 = image_to_base64(Image.fromarray(combined_arr))
+        hist_comb_base64 = create_histogram_base64(combined_arr)
 
-        # Формируем пути для шаблона
+        # Передаём в шаблон
         result_images = {
-            'img1': f'uploads/{unique_id}_1.png',
-            'img2': f'uploads/{unique_id}_2.png',
-            'combined': f'uploads/{unique_id}_combined.png',
-            'hist1': f'uploads/{unique_id}_hist1.png',
-            'hist2': f'uploads/{unique_id}_hist2.png',
-            'hist_comb': f'uploads/{unique_id}_hist_comb.png'
+            'img1': img1_base64,
+            'img2': img2_base64,
+            'combined': combined_base64,
+            'hist1': hist1_base64,
+            'hist2': hist2_base64,
+            'hist_comb': hist_comb_base64
         }
 
         return render_template('result.html', images=result_images)
 
     return render_template('index.html', form=form)
+
+def image_to_base64(img):
+    """Конвертирует PIL-изображение в base64 строку."""
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
+
+def create_histogram_base64(image_array):
+    """Создаёт гистограмму и возвращает её как base64."""
+    fig = plt.figure(figsize=(12, 4))
+    colors = ['red', 'green', 'blue']
+    for i, color in enumerate(colors):
+        plt.subplot(1, 3, i + 1)
+        plt.hist(image_array[:, :, i].flatten(), bins=50, color=color, alpha=0.7)
+        plt.title(f'{color.upper()} channel')
+    plt.tight_layout()
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    img_base64 = base64.b64encode(buf.getvalue()).decode()
+    plt.close(fig)
+    return f"data:image/png;base64,{img_base64}"
 
 if __name__ == '__main__':
     app.run()
