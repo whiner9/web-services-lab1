@@ -6,7 +6,6 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-import uuid
 import io
 import base64
 
@@ -15,7 +14,7 @@ app.secret_key = 'your_secret_key_here'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# --- Настройка Google reCAPTCHA ---
+# reCAPTCHA ---
 app.config['RECAPTCHA_USE_SSL'] = False
 app.config['RECAPTCHA_PUBLIC_KEY'] = '6LemcPwrAAAAAIYgs6n-eLG8IOHyflc85VDuT9Tz'
 app.config['RECAPTCHA_PRIVATE_KEY'] = '6LemcPwrAAAAAPE2uXznN6l80ur37VyNkfGuajrD'
@@ -39,19 +38,6 @@ class ImageForm(FlaskForm):
     recaptcha = RecaptchaField()
     submit = SubmitField('Обработать')
 
-def create_color_histogram(image_array, filename):
-    """Создаёт график распределения цветов RGB."""
-    plt.figure(figsize=(12, 4))
-    colors = ['red', 'green', 'blue']
-    for i, color in enumerate(colors):
-        plt.subplot(1, 3, i + 1)
-        plt.hist(image_array[:, :, i].flatten(), bins=50, color=color, alpha=0.7)
-        plt.title(f'{color.upper()} channel')
-        plt.xlabel('Intensity')
-        plt.ylabel('Frequency')
-    plt.tight_layout()
-    plt.savefig(filename)
-    plt.close()
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -69,7 +55,7 @@ def index():
         arr1 = np.array(img1)
         arr2 = np.array(img2)
 
-        # Создаём гистограммы (в памяти)
+        # Создаём гистограммы
         hist1_base64 = create_histogram_base64(arr1)
         hist2_base64 = create_histogram_base64(arr2)
 
@@ -110,14 +96,14 @@ def index():
     return render_template('index.html', form=form)
 
 def image_to_base64(img):
-    """Конвертирует PIL-изображение в base64 строку."""
+    # Конвертирует изображение в base64
     buf = io.BytesIO()
     img.save(buf, format='PNG')
     buf.seek(0)
     return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
 
 def create_histogram_base64(image_array):
-    """Создаёт гистограмму и возвращает её как base64."""
+    # Создаёт гистограмму и возвращает base64
     fig = plt.figure(figsize=(12, 4))
     colors = ['red', 'green', 'blue']
     for i, color in enumerate(colors):
