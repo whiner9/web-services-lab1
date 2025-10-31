@@ -1,22 +1,32 @@
 from flask import Flask, render_template, request, redirect, url_for
 from flask_wtf import FlaskForm, RecaptchaField
-from flask_wtf.file import FileRequired
-from wtforms import FileField, SubmitField, RadioField
-import os
+from flask_wtf.file import FileField, FileRequired, FileAllowed
+from wtforms import RadioField, SubmitField
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 import uuid
+
+app = Flask(__name__)
+app.secret_key = 'your_secret_key_here'
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# --- Настройка Google reCAPTCHA ---
+app.config['RECAPTCHA_USE_SSL'] = False
+app.config['RECAPTCHA_PUBLIC_KEY'] = '6LemcPwrAAAAAIYgs6n-eLG8IOHyflc85VDuT9Tz'
+app.config['RECAPTCHA_PRIVATE_KEY'] = '6LemcPwrAAAAAPE2uXznN6l80ur37VyNkfGuajrD'
 
 class ImageForm(FlaskForm):
     image1 = FileField(
         'Изображение 1',
-        validators=[FileRequired(message="Выберите файл")],
+        validators=[FileRequired(message="Выберите файл"), FileAllowed(['png', 'jpg', 'jpeg'], 'Только изображения!')],
         render_kw={"accept": "image/*"}
     )
     image2 = FileField(
         'Изображение 2',
-        validators=[FileRequired(message="Выберите файл")],
+        validators=[FileRequired(message="Выберите файл"), FileAllowed(['png', 'jpg', 'jpeg'], 'Только изображения!')],
         render_kw={"accept": "image/*"}
     )
     direction = RadioField(
@@ -27,21 +37,8 @@ class ImageForm(FlaskForm):
     recaptcha = RecaptchaField()
     submit = SubmitField('Обработать')
 
-app = Flask(__name__)
-app.secret_key = 'your_strong_secret_key_here'  # Замените!
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-# --- Настройки Google reCAPTCHA ---
-app.config['RECAPTCHA_USE_SSL'] = False
-app.config['RECAPTCHA_PUBLIC_KEY'] = '6LemcPwrAAAAAIYgs6n-eLG8IOHyflc85VDuT9Tz'
-app.config['RECAPTCHA_PRIVATE_KEY'] = '6LemcPwrAAAAAPE2uXznN6l80ur37VyNkfGuajrD'
-app.config['RECAPTCHA_OPTIONS'] = {'theme': 'light'}
-
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
 def create_color_histogram(image_array, filename):
-    """Создаёт график распределения цветов RGB и сохраняет его."""
+    """Создаёт график распределения цветов RGB."""
     plt.figure(figsize=(12, 4))
     colors = ['red', 'green', 'blue']
     for i, color in enumerate(colors):
@@ -58,13 +55,14 @@ def create_color_histogram(image_array, filename):
 def index():
     form = ImageForm()
     if form.validate_on_submit():
-        # Если форма валидна (включая проверку reCAPTCHA)
         file1 = form.image1.data
         file2 = form.image2.data
         direction = form.direction.data
 
-        # Генерируем уникальные имена
+        # Генерируем уникальный ID
         unique_id = str(uuid.uuid4())
+
+        # Пути к файлам
         path1 = os.path.join(app.config['UPLOAD_FOLDER'], f"{unique_id}_1.png")
         path2 = os.path.join(app.config['UPLOAD_FOLDER'], f"{unique_id}_2.png")
         path_combined = os.path.join(app.config['UPLOAD_FOLDER'], f"{unique_id}_combined.png")
@@ -75,18 +73,6 @@ def index():
         # Открываем изображения
         img1 = Image.open(file1).convert('RGB')
         img2 = Image.open(file2).convert('RGB')
-
-        # Приводим ВТОРОЕ изображение к высоте ПЕРВОГО для горизонтальной склейки
-        if direction == 'horizontal' and img2.size[1] != img1.size[1]:
-            ratio = img1.size[1] / img2.size[1]
-            new_width = int(img2.size[0] * ratio)
-            img2 = img2.resize((new_width, img1.size[1]), Image.Resampling.LANCZOS)
-
-        # Приводим ВТОРОЕ изображение к ширине ПЕРВОГО для вертикальной склейки
-        elif direction == 'vertical' and img2.size[0] != img1.size[0]:
-            ratio = img1.size[0] / img2.size[0]
-            new_height = int(img2.size[1] * ratio)
-            img2 = img2.resize((img1.size[0], new_height), Image.Resampling.LANCZOS)
 
         # Конвертируем в массивы NumPy
         arr1 = np.array(img1)
@@ -102,14 +88,26 @@ def index():
 
         # Склеиваем
         if direction == 'horizontal':
+            # Убедимся, что высоты одинаковы
+            if img1.height != img2.height:
+                new_width = int(img2.width * img1.height / img2.height)
+                img2 = img2.resize((new_width, img1.height), Image.Resampling.LANCZOS)
+                arr2 = np.array(img2)
             combined_arr = np.concatenate((arr1, arr2), axis=1)
-        else:
+        else:  # vertical
+            # Убедимся, что ширины одинаковы
+            if img1.width != img2.width:
+                new_height = int(img2.height * img1.width / img2.width)
+                img2 = img2.resize((img1.width, new_height), Image.Resampling.LANCZOS)
+                arr2 = np.array(img2)
             combined_arr = np.concatenate((arr1, arr2), axis=0)
 
+        # Сохраняем результат
         combined_img = Image.fromarray(combined_arr)
         combined_img.save(path_combined)
         create_color_histogram(combined_arr, path_hist_comb)
 
+        # Формируем пути для шаблона
         result_images = {
             'img1': f'uploads/{unique_id}_1.png',
             'img2': f'uploads/{unique_id}_2.png',
@@ -125,4 +123,3 @@ def index():
 
 if __name__ == '__main__':
     app.run()
-
